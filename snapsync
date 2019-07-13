@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+config() {
+	cat <<<EOF
+# rotorsync configuration
+backup_path="/mnt/snapshot/backups"
+# number of snapshots to keep.
+# automatically rotates system snapshots
+number=30
+#freeze initial snapshot
+# this option will preserve the first sniapshot takenand prevent it from being unlinked by "rm -rf"
+# accepts boolean arguments true/false, yes/no or 1/0
+freeze=""
+log_file="/mnt/snapshot/backups/snapsync.log"
+exclude="/mnt/snapshot/backups/exclude"
+EOF
+}
+exclude_list() {
+	cat <<<EOF
+- /dev/*
+- /tmp/*
+- /mnt/*
+- /run/*
+- /lost+found
+- /sys/*
+- /proc/*
+- /media/*
+- /home/lost+found
+- /home/*/.cache/google*
+- /home/*/.cache/chromium/*
+- /home/*/.cache/google*/*
+- /home/*/.ICEauthority
+- /home/*/.Xauthority
+- /home/*/.cache/thumbnails/*
+- /home/*/.thumbnails/*
+- /home/*/.gvfs/*
+- /home/*/[^.]***
+EOF
+}
+config_file="/etc/rotorsync.cfg"
+if [[ -f $config_file ]] ; then
+	tdate="$(date -I)"
+	run_date="${backup_path}/rundate"
+	last_run="${backup_path}/last_rundate"
+	source $config_file
+	if [[ -f $run_date ]] ; then 
+		mv $run_date $last_run &&
+		echo $tdate > $run_date &&
+		echo $(date +%H%M%S) >> $run_date 
+	else 
+		echo $tdate > $run_date &&
+		echo $(date +%H%M%S) >> $run_date 
+	fi
+	if [[ -d $backup_path ]]; then
+		ionice -c3 -p $$ &> /dev/null
+		renice +15 -p $$ &> /dev/null
+		if [[ -f $exclude ]] ; then
+			snapshot_paths=( ${backup_path}/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] )
+			if [[ ! -d ${snapshot_paths[0]} ]] ; then
+				rsync -aAX \
+				--exclude-from="$exclude" \
+				--log-file="$log_file" \
+				/ "${backup_path}/$tdate" &&
+				echo "Done"	
+				exit
+			fi
+			if (( ${#snapshot_paths} >= 1 )) && (( ${#snapshot_paths[@]} < $number )) ; then
+				rsync 	-aAX \
+				--exclude-from="$exclude" \
+				--link-dest="${snapshot_paths[-1]}" \
+				--log-file="$log_file" \
+				/ "${backup_path}/$tdate" &&
+				echo "Done"	
+				exit
+
+			elif (( ${#snapshot_paths[@]} == $number )) ; then
+				rm -rfv ${snapshot_paths[0]} &>${backup_path}/rotation.log &&
+				rsync 	-aAX \
+				--exclude-from="$exclude" \
+				--link-dest="${snapshot_paths[-1]}" \
+				--log-file="$log_file" \
+				/ "${backup_path}/$tdate" &&
+			fi
+		fi	
+	fi
+#elif [[ ! -f $config_file ]] ; then
+else
+	config > $config_file 
+	exit
+fi	
