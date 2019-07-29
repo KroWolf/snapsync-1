@@ -1,5 +1,5 @@
 [Unit]
-Description=Run Snapsync daily
+Description=Run Slapsync daily
 
 [Timer]
 OnCalendar=*-*-* 1:00:00
