@@ -10,7 +10,7 @@ number=30
 # this option will preserve the first sniapshot takenand prevent it from being unlinked by "rm -rf"
 # accepts boolean arguments true/false, yes/no or 1/0
 freeze=""
-log_file="/mnt/snapshot/backups/snapsync.log"
+log_file="/mnt/snapshot/backups/slapsync.log"
 exclude="/mnt/snapshot/backups/exclude"
 EOF
 }
@@ -36,7 +36,7 @@ exclude_list() {
 - /home/*/[^.]***
 EOF
 }
-config_file="/etc/rotorsync.cfg"
+config_file="/etc/slapsync.cfg"
 if [[ -f $config_file ]] ; then
 	tdate="$(date -I)"
 	run_date="${backup_path}/rundate"
